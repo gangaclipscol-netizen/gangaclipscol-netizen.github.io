@@ -1,0 +1,8 @@
+name = "gangaclips-api"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+# KV con las cuentas conectadas (el id se pone al crear el namespace)
+[[kv_namespaces]]
+binding = "CUENTAS"
+id = "82a5c874cb734a8ea2e90952a18f9b99"

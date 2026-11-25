@@ -21,10 +21,24 @@
   <footer>© 2026 GangaClips · <a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Service</a></footer>
 </main>
 <script>
+  const API = 'https://gangaclips-api.gangaclips.workers.dev';
   const q = new URLSearchParams(location.search);
-  const code = q.get('code'), err = q.get('error');
-  const red = q.get('state') && q.get('state').startsWith('http://localhost:') ? q.get('state') : null;
+  const code = q.get('code'), err = q.get('error'), state = q.get('state') || '';
+  const red = state.startsWith('http://localhost:') ? state : null;
+  const mem = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
   if (code && red) { location.replace(red + '?' + q.toString()); }
+  else if (code && /^(tt|yt)-/.test(state) && state === mem.get('gc_state')) {
+    // Conexión desde app.html: el servidor cambia el código por el permiso y volvemos a la app.
+    document.getElementById('t').textContent = 'Connecting your account…';
+    fetch(API + (state.startsWith('tt-') ? '/auth/tiktok' : '/auth/youtube'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, session: mem.get('gc_session') }),
+    }).then((r) => r.json()).then((d) => {
+      if (d.error) throw new Error(d.error);
+      mem.set('gc_session', d.session);
+      location.replace('app.html');
+    }).catch((e) => { document.getElementById('t').textContent = 'Could not connect'; document.getElementById('m').textContent = e.message; });
+  }
   else if (code) {
     document.getElementById('t').textContent = 'Account authorized ✓';
     document.getElementById('code').textContent = code;

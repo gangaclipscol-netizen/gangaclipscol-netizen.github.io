@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GangaClips Publisher</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="style.css">
+<style>
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .btn { padding: 11px 18px; border-radius: 10px; border: 0; font: inherit; font-weight: 700; cursor: pointer; background: var(--accent); color: #0f0f12; }
+  .btn.sec { background: #2b2b33; color: var(--text); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; }
+  input[type=text], textarea, select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #33333d; background: #111116; color: var(--text); font: inherit; }
+  .check { display: flex; gap: 8px; align-items: center; font-weight: 500; margin: 6px 0; }
+  video { width: 100%; max-width: 260px; border-radius: 12px; background: #000; display: block; margin-top: 10px; }
+  .ok { color: var(--accent); } .err { color: #ff6b6b; }
+  .small { font-size: 14px; }
+  .tabs { display: flex; gap: 8px; margin: 8px 0 4px; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="logo.png" alt="" width="40" height="40" style="border-radius:10px"><a href="./">Ganga<span>Clips</span></a>
+    <nav><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav></header>
+
+  <h1>Publisher</h1>
+  <p class="muted">Connect your accounts, pick a clip and publish it.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">1. Connected accounts</h2>
+    <div class="row" id="tt-row">
+      <span id="tt-who" class="muted">TikTok: not connected</span>
+      <button class="btn" id="tt-connect">Connect TikTok</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <span id="yt-who" class="muted">YouTube: not connected</span>
+      <button class="btn" id="yt-connect">Connect YouTube</button>
+    </div>
+    <p class="small muted" style="margin-top:14px">You can disconnect at any time from your TikTok or Google account settings. <a href="#" id="logout">Sign out here</a>.</p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">2. Clip</h2>
+    <input type="file" id="file" accept="video/mp4,video/quicktime">
+    <video id="preview" controls playsinline hidden></video>
+    <label for="title">Title / caption</label>
+    <textarea id="title" rows="3" maxlength="2200" placeholder="Write the caption for this clip"></textarea>
+  </div>
+
+  <div class="card" id="tt-card" hidden>
+    <h2 style="margin-top:0">3. Post to TikTok</h2>
+    <p class="small muted" id="tt-posting-as"></p>
+    <label for="privacy">Who can view this video</label>
+    <select id="privacy"><option value="" selected disabled>Select privacy</option></select>
+    <label>Allow users to</label>
+    <div class="check"><input type="checkbox" id="c-comment"><span>Comment</span></div>
+    <div class="check"><input type="checkbox" id="c-duet"><span>Duet</span></div>
+    <div class="check"><input type="checkbox" id="c-stitch"><span>Stitch</span></div>
+    <label>Content disclosure</label>
+    <div class="check"><input type="checkbox" id="disclose"><span>Disclose video content (promotes a brand, product or service)</span></div>
+    <div id="disclose-opts" hidden style="margin-left:26px">
+      <div class="check"><input type="checkbox" id="b-own"><span>Your brand — you are promoting yourself or your own business</span></div>
+      <div class="check"><input type="checkbox" id="b-paid"><span>Branded content — you are promoting another brand or a third party</span></div>
+      <p class="small muted" id="disclose-label"></p>
+    </div>
+    <p class="small muted" id="consent">By posting, you agree to TikTok's <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">Music Usage Confirmation</a>.</p>
+    <button class="btn" id="tt-post" disabled>Post to TikTok</button>
+    <p id="tt-status" class="small"></p>
+  </div>
+
+  <div class="card" id="yt-card" hidden>
+    <h2 style="margin-top:0">4. Upload to YouTube</h2>
+    <label for="yt-privacy">Visibility</label>
+    <select id="yt-privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select>
+    <p class="small muted">By uploading, you agree to the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a>.</p>
+    <button class="btn" id="yt-post" disabled>Upload to YouTube</button>
+    <p id="yt-status" class="small"></p>
+  </div>
+
+  <footer>© 2026 GangaClips · <a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Service</a> · <a href="mailto:gangaclips.col@gmail.com">gangaclips.col@gmail.com</a></footer>
+</main>
+<script>
+const API = "https://gangaclips-api.gangaclips.workers.dev"; // se ajusta al desplegar el Worker
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} }, del(k) { try { localStorage.removeItem(k); } catch {} } };
+const session = () => store.get("gc_session");
+const call = async (path, opts = {}) => {
+  const r = await fetch(API + path, { ...opts, headers: { ...(opts.headers || {}), ...(session() ? { Authorization: "Bearer " + session() } : {}) } });
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d;
+};
+let cfg = null, creator = null, video = null, me = null;
+
+async function connect(kind) {
+  cfg = cfg || await call("/config");
+  const state = kind + "-" + crypto.randomUUID();
+  store.set("gc_state", state);
+  const u = kind === "tt"
+    ? "https://www.tiktok.com/v2/auth/authorize/?" + new URLSearchParams({ client_key: cfg.tiktok_client_key, scope: "user.info.basic,video.publish,video.upload", response_type: "code", redirect_uri: cfg.redirect, state })
+    : "https://accounts.google.com/o/oauth2/v2/auth?" + new URLSearchParams({ client_id: cfg.google_client_id, redirect_uri: cfg.redirect, response_type: "code", scope: "https://www.googleapis.com/auth/youtube.upload", access_type: "offline", prompt: "consent", state });
+  location.href = u;
+}
+$("tt-connect").onclick = () => connect("tt");
+$("yt-connect").onclick = () => connect("yt");
+$("logout").onclick = async (e) => { e.preventDefault(); try { await call("/logout", { method: "POST" }); } catch {} store.del("gc_session"); location.reload(); };
+
+async function load() {
+  if (!session()) return;
+  me = await call("/me");
+  if (me.tiktok) {
+    $("tt-who").innerHTML = "";
+    const img = document.createElement("img"); img.className = "avatar"; img.src = me.tiktok.avatar_url; img.alt = "";
+    const name = document.createElement("span"); name.className = "ok"; name.textContent = "TikTok: " + me.tiktok.display_name + " ✓";
+    $("tt-who").append(img, " ", name);
+    $("tt-connect").textContent = "Switch account";
+    creator = (await call("/tiktok/creator")).data;
+    $("tt-card").hidden = false;
+    $("tt-posting-as").textContent = "Posting as " + (creator.creator_nickname || me.tiktok.display_name) + (creator.creator_username ? " (@" + creator.creator_username + ")" : "");
+    for (const p of creator.privacy_level_options || []) {
+      const o = document.createElement("option"); o.value = p;
+      o.textContent = { PUBLIC_TO_EVERYONE: "Everyone", MUTUAL_FOLLOW_FRIENDS: "Friends", FOLLOWER_OF_CREATOR: "Followers", SELF_ONLY: "Only me" }[p] || p;
+      $("privacy").append(o);
+    }
+    if (creator.comment_disabled) $("c-comment").disabled = true;
+    if (creator.duet_disabled) $("c-duet").disabled = true;
+    if (creator.stitch_disabled) $("c-stitch").disabled = true;
+  }
+  if (me.youtube) {
+    $("yt-who").innerHTML = '<span class="ok">YouTube: connected ✓</span>';
+    $("yt-connect").textContent = "Reconnect";
+    $("yt-card").hidden = false;
+  }
+  refresh();
+}
+
+$("file").onchange = () => {
+  const f = $("file").files[0]; if (!f) return;
+  video = f; $("preview").src = URL.createObjectURL(f); $("preview").hidden = false;
+  $("preview").onloadedmetadata = refresh;
+  if (!$("title").value) $("title").value = f.name.replace(/\.\w+$/, "");
+};
+for (const id of ["privacy", "disclose", "b-own", "b-paid", "title"]) $(id).addEventListener("input", refresh);
+
+function refresh() {
+  $("disclose-opts").hidden = !$("disclose").checked;
+  const paid = $("disclose").checked && $("b-paid").checked, own = $("disclose").checked && $("b-own").checked;
+  $("disclose-label").textContent = paid ? 'Your video will be labeled as "Paid partnership".' : own ? 'Your video will be labeled as "Promotional content".' : "";
+  // El contenido de marca no puede ser privado ("Only me").
+  const selfOnly = [...$("privacy").options].find((o) => o.value === "SELF_ONLY");
+  if (selfOnly) { selfOnly.disabled = paid; selfOnly.title = paid ? "Branded content visibility cannot be set to private." : ""; if (paid && $("privacy").value === "SELF_ONLY") $("privacy").value = ""; }
+  $("consent").innerHTML = paid
+    ? 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">Branded Content Policy</a> and <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">Music Usage Confirmation</a>.'
+    : 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">Music Usage Confirmation</a>.';
+  const dur = $("preview").duration || 0, max = creator && creator.max_video_post_duration_sec;
+  const tooLong = max && dur > max;
+  $("tt-status").textContent = tooLong ? `This clip is ${Math.round(dur)} s; your account allows up to ${max} s.` : $("tt-status").textContent;
+  const discloseOk = !$("disclose").checked || own || paid;
+  $("tt-post").disabled = !(video && $("privacy").value && discloseOk && !tooLong);
+  $("yt-post").disabled = !video;
+}
+
+$("tt-post").onclick = async () => {
+  $("tt-post").disabled = true; $("tt-status").className = "small"; $("tt-status").textContent = "Uploading to TikTok…";
+  try {
+    const q = new URLSearchParams({ title: $("title").value, privacy: $("privacy").value,
+      disable_comment: $("c-comment").checked ? "0" : "1", disable_duet: $("c-duet").checked ? "0" : "1", disable_stitch: $("c-stitch").checked ? "0" : "1",
+      brand_organic: $("disclose").checked && $("b-own").checked ? "1" : "0", brand_content: $("disclose").checked && $("b-paid").checked ? "1" : "0" });
+    const { publish_id } = await call("/tiktok/post?" + q, { method: "POST", headers: { "Content-Type": "video/mp4" }, body: video });
+    $("tt-status").textContent = "Sent. TikTok is processing your video; it may take a few minutes to appear on your profile.";
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const s = (await call("/tiktok/status?id=" + encodeURIComponent(publish_id))).data || {};
+      if (s.status === "PUBLISH_COMPLETE") { $("tt-status").className = "small ok"; $("tt-status").textContent = "Posted to TikTok ✓"; return; }
+      if (s.status === "FAILED") throw new Error("TikTok could not publish: " + (s.fail_reason || "unknown reason"));
+    }
+  } catch (e) { $("tt-status").className = "small err"; $("tt-status").textContent = e.message; refresh(); }
+};
+
+$("yt-post").onclick = async () => {
+  $("yt-post").disabled = true; $("yt-status").className = "small"; $("yt-status").textContent = "Uploading to YouTube…";
+  try {
+    const q = new URLSearchParams({ title: $("title").value.split("\n")[0], description: $("title").value, privacy: $("yt-privacy").value });
+    const d = await call("/youtube/upload?" + q, { method: "POST", headers: { "Content-Type": "video/mp4" }, body: video });
+    $("yt-status").className = "small ok";
+    $("yt-status").innerHTML = 'Uploaded to YouTube ✓ <a target="_blank" rel="noopener"></a>';
+    const a = $("yt-status").querySelector("a"); a.href = d.url; a.textContent = d.url;
+  } catch (e) { $("yt-status").className = "small err"; $("yt-status").textContent = e.message; refresh(); }
+};
+
+load().catch((e) => { $("tt-who").textContent = "Error: " + e.message; });
+</script>
+</body>
+</html>
