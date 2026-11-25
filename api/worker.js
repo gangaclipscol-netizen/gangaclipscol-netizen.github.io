@@ -76,6 +76,22 @@ async function ttPublicar(c, video, opciones) {
   return ini.data.publish_id;
 }
 
+async function ttBorrador(c, video) {
+  // Upload (video.upload): el clip queda en la bandeja de TikTok del creador; él lo termina y publica desde la app.
+  const tam = video.byteLength;
+  const ini = await ttApi(c, "/post/publish/inbox/video/init/", {
+    source_info: { source: "FILE_UPLOAD", video_size: tam, chunk_size: tam, total_chunk_count: 1 },
+  });
+  if (!ini.data || !ini.data.upload_url) throw new Error("TikTok borrador: " + JSON.stringify(ini.error || ini));
+  const up = await fetch(ini.data.upload_url, {
+    method: "PUT",
+    headers: { "Content-Type": "video/mp4", "Content-Length": String(tam), "Content-Range": `bytes 0-${tam - 1}/${tam}` },
+    body: video,
+  });
+  if (!up.ok) throw new Error("TikTok subida: HTTP " + up.status + " " + (await up.text()).slice(0, 200));
+  return ini.data.publish_id;
+}
+
 // ---------- YouTube ----------
 async function ytToken(env, form) {
   const r = await fetch("https://oauth2.googleapis.com/token", {
@@ -190,6 +206,11 @@ export default {
         if (!o.privacy) throw new Error("Elige quién puede ver el video");
         const id = await ttPublicar(c, await req.arrayBuffer(), o);
         return json({ publish_id: id }, 200, origin);
+      }
+
+      if (p === "/tiktok/draft" && req.method === "POST") {
+        const c = await ttCuenta(env, yo.tt);
+        return json({ publish_id: await ttBorrador(c, await req.arrayBuffer()) }, 200, origin);
       }
 
       if (p === "/tiktok/status") {
