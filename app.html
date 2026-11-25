@@ -90,7 +90,9 @@ const session = () => store.get("gc_session");
 const call = async (path, opts = {}) => {
   const r = await fetch(API + path, { ...opts, headers: { ...(opts.headers || {}), ...(session() ? { Authorization: "Bearer " + session() } : {}) } });
   const d = await r.json();
-  if (d.error) throw new Error(d.error);
+  // TikTok responde siempre con error.code = "ok" cuando todo salió bien.
+  if (typeof d.error === "string") throw new Error(d.error);
+  if (d.error && d.error.code && d.error.code !== "ok") throw new Error(d.error.message || d.error.code);
   return d;
 };
 let cfg = null, creator = null, video = null, me = null;
