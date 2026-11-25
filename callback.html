@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account connected</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header><a href="./">Ganga<span>Clips</span></a>
+    <nav><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav></header>
+  <h1 id="t">Connecting…</h1>
+  <p class="muted" id="m"></p>
+  <div class="card" id="box" hidden>
+    <p>Copy this authorization code back into GangaClips Publisher to finish connecting your account:</p>
+    <p><code id="code" style="word-break:break-all"></code></p>
+    <button id="copy" style="padding:10px 16px;border-radius:10px;border:0;background:var(--accent);font-weight:700;cursor:pointer">Copy code</button>
+  </div>
+  <footer>© 2026 GangaClips · <a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Service</a></footer>
+</main>
+<script>
+  const q = new URLSearchParams(location.search);
+  const code = q.get('code'), err = q.get('error');
+  const red = q.get('state') && q.get('state').startsWith('http://localhost:') ? q.get('state') : null;
+  if (code && red) { location.replace(red + '?' + q.toString()); }
+  else if (code) {
+    document.getElementById('t').textContent = 'Account authorized ✓';
+    document.getElementById('code').textContent = code;
+    document.getElementById('box').hidden = false;
+    document.getElementById('copy').onclick = () => navigator.clipboard.writeText(code);
+  } else {
+    document.getElementById('t').textContent = err ? 'Authorization cancelled' : 'Nothing to connect';
+    document.getElementById('m').textContent = err ? 'You did not authorize GangaClips Publisher. You can close this page.' : 'Open GangaClips Publisher to connect an account.';
+  }
+  history.replaceState(null, '', location.pathname);
+</script>
+</body>
+</html>
