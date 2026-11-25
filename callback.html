@@ -36,7 +36,7 @@
     }).then((r) => r.json()).then((d) => {
       if (d.error) throw new Error(d.error);
       mem.set('gc_session', d.session);
-      location.replace('app.html');
+      location.replace('app.html?t=' + Date.now());
     }).catch((e) => { document.getElementById('t').textContent = 'Could not connect'; document.getElementById('m').textContent = e.message; });
   }
   else if (code) {
