@@ -6,3 +6,7 @@ compatibility_date = "2026-11-01"
 [[kv_namespaces]]
 binding = "CUENTAS"
 id = "82a5c874cb734a8ea2e90952a18f9b99"
+
+# Reloj: arranca el Vigía de lives de GitHub cada 15 minutos (necesita el secreto GITHUB_TOKEN)
+[triggers]
+crons = ["*/15 * * * *"]

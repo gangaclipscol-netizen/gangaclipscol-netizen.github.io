@@ -148,6 +148,17 @@ async function quien(env, req) {
 }
 
 export default {
+  // Reloj de Cloudflare (cada 15 min): arranca el Vigía de lives en GitHub. Los horarios de GitHub Actions se atrasan
+  // o no arrancan en repos nuevos; este sí es puntual.
+  async scheduled(evento, env) {
+    const r = await fetch("https://api.github.com/repos/gangaclipscol-netizen/gangaclips-robot/actions/workflows/vigia.yml/dispatches", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + env.GITHUB_TOKEN, Accept: "application/vnd.github+json", "User-Agent": "gangaclips-api" },
+      body: JSON.stringify({ ref: "main" }),
+    });
+    if (!r.ok) console.log("vigía no arrancó: HTTP " + r.status + " " + (await r.text()).slice(0, 200));
+  },
+
   async fetch(req, env) {
     const origin = req.headers.get("Origin");
     if (req.method === "OPTIONS") return new Response(null, { headers: cors(origin) });
